@@ -20,8 +20,8 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #  THE SOFTWARE.
 
-FROM openjdk:8-jdk
-LABEL MAINTAINER="Nicolas De Loof <nicolas.deloof@gmail.com>"
+FROM ubuntu:16.04
+LABEL MAINTAINER="Sebastiano Miano <mianosebastiano@gmail.com>"
 
 ARG user=jenkins
 ARG group=jenkins
@@ -34,9 +34,24 @@ ENV JENKINS_AGENT_HOME ${JENKINS_AGENT_HOME}
 RUN groupadd -g ${gid} ${group} \
     && useradd -d "${JENKINS_AGENT_HOME}" -u "${uid}" -g "${gid}" -m -s /bin/bash "${user}"
 
+# Install Java.
+RUN \
+  apt-get update && \
+  apt-get install software-properties-common -y && \
+  apt-get install git -y
+
+RUN \
+  echo oracle-java8-installer shared/accepted-oracle-license-v1-1 select true | debconf-set-selections && \
+  add-apt-repository -y ppa:webupd8team/java && \
+  apt-get update && \
+  apt-get install -y oracle-java8-installer && \
+  rm -rf /var/lib/apt/lists/* && \
+  rm -rf /var/cache/oracle-jdk8-installer
+
 # setup SSH server
 RUN apt-get update \
     && apt-get install --no-install-recommends -y openssh-server \
+    && apt-get install sudo -y \
     && apt-get clean
 RUN sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 RUN sed -i 's/#RSAAuthentication.*/RSAAuthentication yes/' /etc/ssh/sshd_config
@@ -47,6 +62,8 @@ RUN mkdir /var/run/sshd
 
 VOLUME "${JENKINS_AGENT_HOME}" "/tmp" "/run" "/var/run"
 WORKDIR "${JENKINS_AGENT_HOME}"
+
+ENV JAVA_HOME /usr/lib/jvm/java-8-oracle
 
 COPY setup-sshd /usr/local/bin/setup-sshd
 
